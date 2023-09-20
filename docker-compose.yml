@@ -1,0 +1,43 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - './app:/opt/app'
+      - myFiles:/MyDir
+    command:
+      - uvicorn
+      - app.main:app
+      - --host=0.0.0.0
+      - --port=8011
+      - --reload
+    ports:
+      - 8011:8011
+
+  redis:
+    image: redis:6-alpine
+    container_name: redis
+    command:
+      - --requirepass test-pass
+    restart: unless-stopped
+    ports:
+      - 8379:6379
+
+  celery_worker:
+    container_name: celery-worker
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: watchmedo auto-restart --directory=/opt/app --pattern=*.py --recursive -- celery -A app.celery.celery_worker worker -l DEBUG -n celery-service
+    restart: unless-stopped
+    volumes:
+      - "./app:/opt/app"
+      - myFiles:/MyDir
+    depends_on:
+      - redis
+
+volumes:
+  myFiles:
